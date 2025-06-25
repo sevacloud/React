@@ -1,7 +1,8 @@
 /**
  * A custom React Query hook for paginated (infinite) GraphQL queries against an AWS AppSync endpoint.
  *
- * @author Your Name
+ * @author Liamarjit, Seva Cloud
+ * @website https://sevacloud.co.uk
  *
  * @template TInput     The variables/input shape for the GraphQL query, including a `NextToken` field.
  * @template TResponse  The shape of the GraphQL response data returned for each page.
