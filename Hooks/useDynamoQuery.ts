@@ -1,7 +1,7 @@
 import GraphQLAPI, { graphqlOperation, GraphQLResult } from '@aws-amplify/api-graphql';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { DynamoDBQueryInput } from 'API';
-import { ApiError } from '../utils/types';
+import { ApiError } from '../Utils/types';
 
 interface GraphQLResponse<T> {
   [key: string]: T[] | null;
