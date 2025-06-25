@@ -27,6 +27,10 @@ interface UseGraphQLQueryProps<T, Q extends GraphQLResponse<T>, V, I = undefined
 /**
  * A generic React Query hook for fetching lists of items from AppSync.
  *
+ * @author Liamarjit, Seva Cloud
+ * @website https://sevacloud.co.uk
+ * @Donation: https://www.paypal.com/donate/?hosted_button_id=6EB8U2A94PX5Q
+ *
  * @template T The array item type returned by the query.
  * @template Q The overall GraphQL response shape, mapping keys to arrays of T.
  * @template V The variables-object type for your generated GraphQL query.
