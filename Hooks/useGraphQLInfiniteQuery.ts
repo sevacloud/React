@@ -1,3 +1,13 @@
+import GraphQLAPI, { graphqlOperation, GraphQLResult } from '@aws-amplify/api-graphql';
+import { useInfiniteQuery, UseInfiniteQueryResult } from '@tanstack/react-query';
+
+interface InfiniteQueryOptions<TInput, TResponse> {
+  query: string;
+  input?: Omit<TInput, 'NextToken'>;
+  queryKey: string[];
+  getNextToken: (response: TResponse) => string | undefined;
+}
+
 /**
  * A custom React Query hook for paginated (infinite) GraphQL queries against an AWS AppSync endpoint.
  * The resolver needs to vend nd receive "NextToken" for pagination, handled client side.
