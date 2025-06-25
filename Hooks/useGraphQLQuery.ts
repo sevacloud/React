@@ -1,6 +1,6 @@
 import GraphQLAPI, { graphqlOperation, GraphQLResult } from '@aws-amplify/api-graphql';
 import { useQuery, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import { ApiError } from '../utils/types';
+import { ApiError } from '../Utils/types';
 
 interface GraphQLResponse<T> {
   [key: string]: T[] | null;
