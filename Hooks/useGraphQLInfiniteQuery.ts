@@ -16,6 +16,7 @@ interface InfiniteQueryOptions<TInput, TResponse> {
  *
  * @author Liamarjit, Seva Cloud
  * @website https://sevacloud.co.uk
+ * @Donation: https://www.paypal.com/donate/?hosted_button_id=6EB8U2A94PX5Q
  *
  * @template TInput      The variables/input shape for the GraphQL query, including a `NextToken` field.
  * @template TResponse   The shape of the GraphQL response data returned for each page.
