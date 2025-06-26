@@ -8,13 +8,24 @@ interface InfiniteQueryOptions<TInput, TResponse> {
   getNextToken: (response: TResponse) => string | undefined;
 }
 
+interface GraphQLErrorDetail {
+  message: string;
+}
+
+class GraphQLFetchError extends Error {
+  errors: GraphQLErrorDetail[];
+
+  constructor(message: string, errors: GraphQLErrorDetail[] = []) {
+    super(message);
+    this.errors = errors;
+  }
+}
+
 /**
  * A custom React Query hook for paginated (infinite) GraphQL queries against an AWS AppSync endpoint.
- * The resolver needs to vend nd receive "NextToken" for pagination, handled client side.
  *
  * @author Liamarjit, Seva Cloud
  * @website https://sevacloud.co.uk
- * @Donation: https://www.paypal.com/donate/?hosted_button_id=6EB8U2A94PX5Q
  *
  * @template TInput     The variables/input shape for the GraphQL query, including a `NextToken` field.
  * @template TResponse  The shape of the GraphQL response data returned for each page.
@@ -65,13 +76,16 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse>({
 
         return result.data;
     } catch (err: any) {
-        const message = err?.errors?.[0]?.message || err.message || 'Unknown GraphQL error';
-        console.error('GraphQL query error:', message);
-        throw new Error(message);
+      const gqlErrors = err?.errors ?? [];
+      const message = gqlErrors.length > 0
+        ? gqlErrors.map((e: GraphQLErrorDetail) => e.message).join(', ')
+        : err.message || 'Unknown GraphQL error';
+      console.error('GraphQL query error:', message);
+      throw new GraphQLFetchError(message, gqlErrors);
     };
   };
 
-  return useInfiniteQuery<TResponse>({
+  return useInfiniteQuery<TResponse, GraphQLFetchError>({
     queryKey,
     queryFn,
     getNextPageParam: (lastPage) => getNextToken(lastPage),
