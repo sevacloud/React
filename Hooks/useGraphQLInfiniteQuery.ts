@@ -64,7 +64,7 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem = undef
 }: InfiniteQueryOptions<TInput, TResponse, TItem>): UseInfiniteQueryResult<TResponse, ApiError<GraphQLResponse<TResponse>>> {
   const queryFn = async ({ pageParam }: { pageParam?: TResponse; }) => {
     console.log(`Loading all ${query} Data via AppSync and React Query`, input);
-    const variables = pageParam ? { input: { ...input, NextToken: pageParam } } : {...input};
+    const variables = pageParam ? { ...input, NextToken: pageParam } : { ...input };
 
     const result = (await GraphQLAPI.graphql<GraphQLResult<TResponse>>(
         graphqlOperation(query, variables)
@@ -92,3 +92,4 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem = undef
     ...options,
   });
 }
+
