@@ -1,12 +1,12 @@
 import GraphQLAPI, { graphqlOperation, GraphQLResult } from '@aws-amplify/api-graphql';
-import { useInfiniteQuery, UseInfiniteQueryResult } from '@tanstack/react-query';
+import { useInfiniteQuery, UseInfiniteQueryOptions, UseInfiniteQueryResult } from '@tanstack/react-query';
 import { ApiError, GraphQLResponse } from '../utils/types';
 
-interface InfiniteQueryOptions<TInput, TResponse> {
+interface InfiniteQueryOptions<TInput, TResponse, TItem = undefined> {
   query: string;
-  input?: Omit<TInput, 'NextToken'>;
+  input?: TInput;
   queryKey: string[];
-  getNextToken: (response: TResponse) => string | undefined;
+  getNextToken: (response: TResponse) => string | TItem | undefined;
   /** Optional React Query configuration */
   readonly options?: UseInfiniteQueryOptions<TResponse, ApiError<GraphQLResponse<TResponse>>>;
 }
@@ -18,12 +18,13 @@ interface InfiniteQueryOptions<TInput, TResponse> {
  * @website https://sevacloud.co.uk
  * @Donation: https://www.paypal.com/donate/?hosted_button_id=6EB8U2A94PX5Q
  *
- * @template TInput      The variables/input shape for the GraphQL query, including a `NextToken` field.
+ * @template TInput      The variables/input shape for the GraphQL query.
  * @template TResponse   The shape of the GraphQL response data returned for each page.
+ * @template TItem       The shape of the items array within each page
  *
  * @param params.query           The GraphQL query document (usually code-generated) to execute.
- * @param params.input           Initial input variables to send, excluding `NextToken`. Subsequent pages
- *                                will automatically pass the `NextToken` returned from the previous page.
+ * @param params.input           Initial input variables to send.Subsequent pages will automatically pass
+ *                                the `NextToken` returned from the previous page.
  * @param params.queryKey        An array of strings used by React Query to uniquely cache and identify this query.
  * @param params.getNextToken    A function that, given the response data of type `TResponse`, extracts the
  *                                `NextToken` string for fetching the next page, or returns `undefined` if
@@ -54,16 +55,16 @@ interface InfiniteQueryOptions<TInput, TResponse> {
  * }
  * ```
  */
-export default function useGraphQLInfiniteQuery<TInput, TResponse>({
+export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem = undefined>({
   query,
   input,
   queryKey,
   getNextToken,
   options,
-}: InfiniteQueryOptions<TInput, TResponse>): UseInfiniteQueryResult<TResponse, ApiError<GraphQLResponse<TResponse>>> {
+}: InfiniteQueryOptions<TInput, TResponse, TItem>): UseInfiniteQueryResult<TResponse, ApiError<GraphQLResponse<TResponse>>> {
   const queryFn = async ({ pageParam }: { pageParam?: TResponse; }) => {
     console.log(`Loading all ${query} Data via AppSync and React Query`, input);
-    const variables = pageParam ? { input: { NextToken: pageParam } } : {};
+    const variables = pageParam ? { input: { ...input, NextToken: pageParam } } : {...input};
 
     const result = (await GraphQLAPI.graphql<GraphQLResult<TResponse>>(
         graphqlOperation(query, variables)
