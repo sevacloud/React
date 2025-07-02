@@ -67,7 +67,7 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem>({
       throw new Error(result.errors.map(e => e.message).join(', '));
     }
 
-    if (result === null) {
+    if (!result.data) {
       throw new Error(`Null data for operation: ${query}`);
     }
 
@@ -78,10 +78,6 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem>({
     queryKey,
     queryFn,
     getNextPageParam: (lastPage) => getNextToken(lastPage),
-    select: (data) => ({
-      pages: data.pages,
-      pageParams: data.pageParams,
-    }),
     ...options,
   });
 
