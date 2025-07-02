@@ -1,70 +1,63 @@
 import GraphQLAPI, { graphqlOperation, GraphQLResult } from '@aws-amplify/api-graphql';
-import { useInfiniteQuery, UseInfiniteQueryOptions, UseInfiniteQueryResult } from '@tanstack/react-query';
+import { useInfiniteQuery, UseInfiniteQueryOptions } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
 import { ApiError, GraphQLResponse } from '../utils/types';
 
-interface InfiniteQueryOptions<TInput, TResponse, TItem = undefined> {
+interface InfiniteQueryOptions<TInput, TResponse, TItem> {
   query: string;
   input?: TInput;
   queryKey: string[];
-  getNextToken: (response: TResponse) => string | TItem | undefined;
+  queryString: keyof TResponse;
+  getNextToken: (response: TResponse) => string | TItem;
   /** Optional React Query configuration */
   readonly options?: UseInfiniteQueryOptions<TResponse, ApiError<GraphQLResponse<TResponse>>>;
 }
 
 /**
- * A generic React Query hook for fetching paginated data from an AWS AppSync GraphQL endpoint using client side pagination.
+ * A generic React Query hook for fetching paginated data from an AWS AppSync GraphQL endpoint.
  *
  * @author Liamarjit, Seva Cloud
  * @website https://sevacloud.co.uk
  * @Donation: https://www.paypal.com/donate/?hosted_button_id=6EB8U2A94PX5Q
  *
- * @template TInput      The variables/input shape for the GraphQL query.
- * @template TResponse   The shape of the GraphQL response data returned for each page.
- * @template TItem       The shape of the items array within each page
+ * @template TInput      The shape of the GraphQL query input variables.
+ * @template TResponse   The shape of the GraphQL response per page.
+ * @template TItem       The shape of individual items in the paginated list.
  *
- * @param params.query           The GraphQL query document (usually code-generated) to execute.
- * @param params.input           Initial input variables to send.Subsequent pages will automatically pass
- *                                the `NextToken` returned from the previous page.
- * @param params.queryKey        An array of strings used by React Query to uniquely cache and identify this query.
- * @param params.getNextToken    A function that, given the response data of type `TResponse`, extracts the
- *                                `NextToken` string for fetching the next page, or returns `undefined` if
- *                                there are no more pages.
- * @param [params.options]       Optional React Query `UseInfiniteQueryOptions` to customize caching,
- *                                retry behavior, stale times, etc.
+ * @param params.query            GraphQL query string to execute.
+ * @param params.input            Initial input variables for the query. The `NextToken` will be injected automatically.
+ * @param params.queryKey         A unique array used by React Query to identify and cache the query.
+ * @param params.queryString      The top-level key in the GraphQL response where the paginated `Items` array is found.
+ * @param params.getNextToken     A function to extract the pagination token from a page of data.
+ * @param [params.options]        Additional React Query options such as `staleTime`, `retry`, etc.
  *
- * @returns A `UseInfiniteQueryResult<TResponse, ApiError<GraphQLResponse<TResponse>>>` object from React Query, containing:
- *  - `data.pages`: an array of `TResponse` objects, one per fetched page,
- *  - `fetchNextPage()`, `hasNextPage`, `isFetching`, and other React Query utilities.
+ * @returns An extended React Query result including:
+ *  - `data.pages`: Array of full page responses
+ *  - `items`: Flattened array of all items fetched across pages
+ *  - `fetchNextPage()`, `hasNextPage`, `isFetching`, etc.
  *
  * @example
- * ```ts
- * function useAllUsers() {
- *   return useGraphQLInfiniteQuery<
- *     ListUsersQueryVariables,
- *     ListUsersQuery
- *   >({
- *     query: listUsersQuery,
- *     input: { limit: 50 },
- *     queryKey: ['users', 'infinite'],
- *     getNextToken: data => data.listUsers?.nextToken,
- *     options: {
- *       staleTime: 1000 * 60 * 5, // 5 minutes
- *       retry: 1,
- *     },
- *   });
- * }
+ * ```tsx
+ * const { items, isLoading } = useGraphQLInfiniteQuery({
+ *   query: listUsersQuery,
+ *   input: { limit: 100 },
+ *   queryKey: ['users'],
+ *   queryString: 'listUsers',
+ *   getNextToken: (data) => data.listUsers?.nextToken,
+ * });
  * ```
  */
-export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem = undefined>({
+export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem>({
   query,
   input,
   queryKey,
+  queryString,
   getNextToken,
   options,
-}: InfiniteQueryOptions<TInput, TResponse, TItem>): UseInfiniteQueryResult<TResponse, ApiError<GraphQLResponse<TResponse>>> {
+}: InfiniteQueryOptions<TInput, TResponse, TItem>) {
   const queryFn = async ({ pageParam }: { pageParam?: TResponse; }) => {
     console.log(`Loading all ${query} Data via AppSync and React Query`, input);
-    const variables = pageParam ? { ...input, NextToken: pageParam } : { ...input };
+    const variables = { ...input, NextToken: pageParam };
 
     const result = (await GraphQLAPI.graphql<GraphQLResult<TResponse>>(
         graphqlOperation(query, variables)
@@ -81,7 +74,7 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem = undef
     return result.data;
   };
 
-  return useInfiniteQuery<TResponse, ApiError<GraphQLResponse<TResponse>>>({
+  const infiniteQuery = useInfiniteQuery<TResponse, ApiError<GraphQLResponse<TResponse>>>({
     queryKey,
     queryFn,
     getNextPageParam: (lastPage) => getNextToken(lastPage),
@@ -91,5 +84,21 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem = undef
     }),
     ...options,
   });
-}
 
+  // Auto-fetch all pages
+  useEffect(() => {
+    if (infiniteQuery.hasNextPage && !infiniteQuery.isFetching) {
+      infiniteQuery.fetchNextPage();
+    }
+  }, [infiniteQuery.data]);
+
+  // Flatten items
+  const items: TItem[] = useMemo(() => {
+    return infiniteQuery.data?.pages.flatMap(page => (page[queryString] as any)?.Items ?? []) ?? [];
+  }, [infiniteQuery.data]);
+
+  return {
+    ...infiniteQuery,
+    items,
+  };
+}
