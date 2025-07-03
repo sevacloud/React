@@ -3,15 +3,14 @@ import { useInfiniteQuery, UseInfiniteQueryOptions } from '@tanstack/react-query
 import { useEffect, useMemo } from 'react';
 import { ApiError, GraphQLResponse } from '../utils/types';
 
-interface InfiniteQueryOptions<TInput, TResponse, TItem, TStartKey> {
+interface InfiniteQueryOptions<TInput, TResponse, TStartKey> {
   query: string
   queryInput?: TInput;
   itemsKey: string;
   queryKey: string[];
   nextTokenKey: string;
   queryString: keyof TResponse;
-  startKeys?: (keyof TStartKey)[];
-  getNextToken: (response: TResponse) => string | TItem;
+  getNextToken: (response: TResponse) => string | TStartKey;
   readonly options?: UseInfiniteQueryOptions<TResponse, ApiError<GraphQLResponse<TResponse>>>;
 }
 
@@ -34,7 +33,6 @@ interface InfiniteQueryOptions<TInput, TResponse, TItem, TStartKey> {
  * @param params.nextTokenKey     The key name to inject the token into the input object (e.g., 'ExclusiveStartKey').
  * @param params.queryString      The top-level key in the GraphQL response where the paginated `Items` array is found.
  * @param params.getNextToken     A function to extract the pagination token from a page of data.
- * @param params.startKeys        An array of strings to trim down the response into a Start Key
  * @param [params.options]        Additional React Query options such as `staleTime`, `retry`, etc.
  *
  * @returns An extended React Query result including:
@@ -53,11 +51,10 @@ interface InfiniteQueryOptions<TInput, TResponse, TItem, TStartKey> {
  *   getNextToken: (data) => data.listUsers?.nextToken,
  *   nextTokenKey: 'ExclusiveStartKey',
  *   itemsKey: 'Items',
- *   startKeys: ['userId'],
  * });
  * ```
  */
-export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem, TStartKey extends object = any>({
+export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem, TStartKey, TLastKey>({
   query,
   queryInput,
   itemsKey,
@@ -65,47 +62,24 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem, TStart
   queryString,
   nextTokenKey,
   getNextToken,
-  startKeys,
   options,
-}: InfiniteQueryOptions<TInput, TResponse, TItem, TStartKey>) {
-  // Trims the Last Evaluated Key in TItem into the Start Key within TInput
-  function trimToExclusiveKey<T extends object, K extends keyof T>(
-    obj: any,
-    allowedKeys: K[]
-  ): Pick<T, K> {
-    if (!obj || typeof obj !== 'object') return {} as Pick<T, K>;
-
-    console.log(`${queryKey} trimming the fat`);
-
-    return Object.fromEntries(
-      Object.entries(obj).filter(([key]) => allowedKeys.includes(key as K))
-    ) as Pick<T, K>;
-  }
-
-  const queryFn = async ({ pageParam }: { pageParam?: string | TResponse; }) => {
+}: InfiniteQueryOptions<TInput, TResponse, TStartKey>) {
+  const queryFn = async ({ pageParam }: { pageParam?: string | TLastKey; }) => {
     console.log(`Loading all ${query} Data via AppSync and React Query`, queryInput);
 
-    console.log(`${queryKey} nextTokenKey: ${nextTokenKey}`)
-    console.log(`${queryKey} queryInput: ${JSON.stringify(queryInput)}`)
-
-    // Prevents double-stringification of strings.
-    const trimmedToken = startKeys && typeof pageParam === 'object'
-    ? trimToExclusiveKey<TStartKey, keyof TStartKey>(
-        pageParam,
-        startKeys as (keyof TStartKey)[]
+    // Prevents double-stringification of strings and removes the __typename prop.
+    const tokenValue = pageParam && typeof pageParam === 'object'
+    ? Object.fromEntries(
+        Object.entries(pageParam).filter(([key]) => key !== '__typename')
       )
     : pageParam;
-
-    console.log(`${queryKey} trimmedToken: ${JSON.stringify(trimmedToken)}`)
 
     const variables = {
       input: {
         ...queryInput,
-        ...(trimmedToken ? { [nextTokenKey]: trimmedToken } : {}),
+        ...(tokenValue ? { [nextTokenKey]: tokenValue } : {}),
       }
     };
-
-    console.log(`${queryKey} variables: ${JSON.stringify(variables)}`)
 
     const result = (await GraphQLAPI.graphql<GraphQLResult<TResponse>>(
         graphqlOperation(query, variables)
@@ -118,8 +92,6 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem, TStart
     if (!result.data) {
       throw new Error(`Null data for operation: ${query}`);
     }
-
-    console.log(`${queryKey} result.data: ${JSON.stringify(result.data)}`)
 
     return result.data;
   };
@@ -140,7 +112,12 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem, TStart
 
   // Flatten items
   const items: TItem[] = useMemo(() => {
-    return infiniteQuery.data?.pages.flatMap(page => (page[queryString] as any)[itemsKey] ?? []) ?? [];
+    return (
+      infiniteQuery.data?.pages.flatMap((page) => {
+        const resultBlock = page?.[queryString];
+        return resultBlock?.[itemsKey] ?? [];
+      }) ?? []
+    );
   }, [infiniteQuery.data]);
 
   return {
