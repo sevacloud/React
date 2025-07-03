@@ -25,6 +25,7 @@ interface InfiniteQueryOptions<TInput, TResponse, TStartKey> {
  * @template TResponse   The shape of the GraphQL response per page.
  * @template TItem       The shape of individual items in the paginated list.
  * @template TStartKey   The shape of the Start Key
+ * @template TLastKey    The shape of the Last Evaluated Key
  *
  * @param params.query            GraphQL query string to execute.
  * @param params.input            Initial input variables for the query. The `NextToken` key will be injected automatically.
