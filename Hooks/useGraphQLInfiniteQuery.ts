@@ -66,14 +66,15 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem, TStart
   options,
 }: InfiniteQueryOptions<TInput, TResponse, TStartKey>) {
   const queryFn = async ({ pageParam }: { pageParam?: string | TLastKey; }) => {
-    console.log(`Loading all ${query} Data via AppSync and React Query`, queryInput);
+    console.log(`Loading ${String(queryString)} data`);
+    console.debug(`${String(queryString)} input`, queryInput);
 
     // Prevents double-stringification of strings and removes the __typename prop.
     const tokenValue = pageParam && typeof pageParam === 'object'
-    ? Object.fromEntries(
+      ? Object.fromEntries(
         Object.entries(pageParam).filter(([key]) => key !== '__typename')
       )
-    : pageParam;
+      : pageParam;
 
     const variables = {
       input: {
@@ -81,17 +82,19 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem, TStart
         ...(tokenValue ? { [nextTokenKey]: tokenValue } : {}),
       }
     };
+    console.debug(`${String(queryString)} variables`, variables);
 
     const result = (await GraphQLAPI.graphql<GraphQLResult<TResponse>>(
         graphqlOperation(query, variables)
     )) as GraphQLResult<TResponse>;
+    console.debug(`${String(queryString)} result`, result);
 
     if (result.errors?.length) {
       throw new Error(result.errors.map(e => e.message).join(', '));
     }
 
     if (!result.data) {
-      throw new Error(`Null data for operation: ${query}`);
+      throw new Error(`Null data for operation: ${String(queryString)}`);
     }
 
     return result.data;
@@ -121,8 +124,11 @@ export default function useGraphQLInfiniteQuery<TInput, TResponse, TItem, TStart
     );
   }, [infiniteQuery.data]);
 
+  console.debug(`${String(queryString)} items: ${JSON.stringify(items, null, 2)}`)
+
   return {
     ...infiniteQuery,
     items,
   };
 }
+
