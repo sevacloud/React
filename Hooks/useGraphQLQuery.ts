@@ -3,7 +3,7 @@ import { useQuery, UseQueryOptions, UseQueryResult } from '@tanstack/react-query
 import { ApiError } from '../Utils/types';
 
 interface GraphQLResponse<T> {
-  [key: string]: T[] | null;
+  [key: string]: T | null;
 }
 
 type GeneratedQuery<TVariables, TQuery> = string & {
@@ -21,7 +21,7 @@ interface UseGraphQLQueryProps<T, Q extends GraphQLResponse<T>, V, I = undefined
   /** Field name in the GraphQL response to extract the array from */
   readonly operationName: keyof Q;
   /** Optional React Query configuration */
-  readonly options?: UseQueryOptions<T[], ApiError<GraphQLResponse<T>>>;
+  readonly options?: UseQueryOptions<T, ApiError<GraphQLResponse<T>>>;
 }
 
 /**
@@ -45,17 +45,17 @@ interface UseGraphQLQueryProps<T, Q extends GraphQLResponse<T>, V, I = undefined
  * @returns A UseQueryResult<T[], ApiError<…>> with `.data`, `.isLoading`, `.error`, etc.
  */
 function useGraphQLQuery<
-T,
-Q extends GraphQLResponse<T>,
-V,
-I = undefined
+  T,
+  Q extends GraphQLResponse<T>,
+  V,
+  I = undefined
 >({
   cacheKey,
   queryInput,
   graphQLQuery,
   operationName,
   options,
-}: UseGraphQLQueryProps<T, Q, V, I>): UseQueryResult<T[], ApiError<GraphQLResponse<T>>> {
+}: UseGraphQLQueryProps<T, Q, V, I>): UseQueryResult<T, ApiError<GraphQLResponse<T>>> {
   console.log(`Loading ${String(operationName)} via AppSync and React Query`);
 
   const fetcher = async (input: I) => {
@@ -65,6 +65,8 @@ I = undefined
       graphqlOperation(graphQLQuery, { input })
     )) as GraphQLResult<Q>;
 
+    console.log('RESPONSE', response)
+
     if (response.errors?.length) {
       throw new Error(response.errors.map(e => e.message).join(', '));
     }
@@ -72,7 +74,7 @@ I = undefined
       throw new Error(`No data for operation: ${String(operationName)}`);
     }
 
-    const result = response.data[operationName] as T[];
+    const result = response.data[operationName] as T;
     if (result === null) {
       throw new Error(`Null data for operation: ${String(operationName)}`);
     }
@@ -81,11 +83,12 @@ I = undefined
     return result;
   };
 
-  return useQuery<T[], ApiError<GraphQLResponse<T>>>({
+  return useQuery<T, ApiError<GraphQLResponse<T>>>({
     queryKey: [cacheKey, queryInput],
-    queryFn: () => fetcher(queryInput! as I),
+    queryFn: () => fetcher(queryInput as I),
     ...options,
   });
 }
 
 export default useGraphQLQuery;
+
