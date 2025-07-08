@@ -5,8 +5,18 @@ import useGraphQLInfiniteQuery from './useGraphQLInfiniteQuery';
 export /**
  * Leverage the generic Infinite Query hook to call a GraphQL endpoint for paginated data
  *
+ * @author Liamarjit, Seva Cloud
+ * @website https://sevacloud.co.uk
+ * @Donation: https://www.paypal.com/donate/?hosted_button_id=6EB8U2A94PX5Q
+ *
+ * @ Example
+ * const {items, isLoading, isError, error} = useInfiniteQueryExample();
+ *
  * @return {
- *   items: InfiniteQueryExampleItem[];
+ *   items: InfiniteQueryExampleItem[],
+ *   isLoading: boolean,
+ *   isError: boolean,
+ *   error: Error,
  *   ...
  * }
  */
